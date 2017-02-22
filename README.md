@@ -12,7 +12,7 @@ U = *int*
 
 [Command]    
 command = *string*  
-name  = *<seq>*  
+name  = \<seq>  
 time = *int*  
   
 ***
