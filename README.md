@@ -18,7 +18,7 @@ time = *int*
 ***
 \<seq> := \<sametime> {, \<sametime>}  
 \<sametime> := \<terminal> {+ \<terminal>}  
-\<terminal> := buttonname | \<attr> *buttonname*  
+\<terminal> := buttonname \| \<attr> buttonname  
 \<attr> := /  |  >  |  ~
 ***
 
