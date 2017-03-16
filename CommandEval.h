@@ -19,13 +19,13 @@ namespace Command {
 	using Command_Name = std::string;
 	using Mapped_Name = std::string;
 
-	namespace impl {
+	namespace visitors {
 		using namespace Actions;
 		struct err_no_mapped_buttton {
 			std::string err;
 		};
 		static constexpr unsigned int Sametime_margine = 3;
-		class visitor : public boost::static_visitor<ret_t> {
+		class make_tree : public boost::static_visitor<ret_t> {
 		private:
 			bool isPress(const Buffer_t::const_iterator& _it, unsigned int button)const {
 				if (_it == itend) {
@@ -34,33 +34,33 @@ namespace Command {
 				auto ret = (*it).count(button) > 0 && (*it).at(button) == 0;
 				return ret;
 			}
-			bool isHold(const Buffer_t::const_iterator& _it, unsigned int button,unsigned int time = 0)const {
+			bool isHold(const Buffer_t::const_iterator& _it, unsigned int button, unsigned int time = 0)const {
 				if (_it == itend) {
 					return false;
 				}
 				auto ret = (*it).count(button) > 0 && (*it).at(button) >= time;
 				return ret;
 			}
-			bool isRelease(const Buffer_t::const_iterator& _it, unsigned int button,int time = -1)const {
+			bool isRelease(const Buffer_t::const_iterator& _it, unsigned int button, int time = -1)const {
 				if (_it == itend) {
 					return false;
 				}
 				auto f1 = (*it).count(button) > 0 && (*it).at(button) == -1;
-				auto f2 = (time < 0) || (it != itend && (it+1) != itend &&  (*(it + 1)).count(button) != 0 && (*(it + 1)).at(button) > time);
+				auto f2 = (time < 0) || (it != itend && (it + 1) != itend && (*(it + 1)).count(button) != 0 && (*(it + 1)).at(button) > time);
 				auto ret = f1&&f2;
 				return ret;
 			}
 		public:
-			visitor(const Buffer_t::const_iterator& _it, const Buffer_t::const_iterator& _itend, const std::unordered_map<Mapped_Name, unsigned int>& _button_map, unsigned int _margine = 1) :it(_it),itend(_itend), button_map(_button_map),margine(_margine) {}
+			make_tree(const Buffer_t::const_iterator& _it, const Buffer_t::const_iterator& _itend, const std::unordered_map<Mapped_Name, unsigned int>& _button_map, unsigned int _margine = 1) :it(_it), itend(_itend), button_map(_button_map), margine(_margine) {}
 			ret_t operator()(Sequence arg) const {
 				decltype(it) ret = it;
-				for (auto it_cmd =arg.data.rbegin(), end = arg.data.rend(); it_cmd != end;) {
+				for (auto it_cmd = arg.data.rbegin(), end = arg.data.rend(); it_cmd != end;) {
 					auto dt = ret - it;
 					if (dt > margine) {
 						return ret_t{ false,it };
 					}
 					auto & elem = *it_cmd;
-					auto tmpret = boost::apply_visitor(visitor{ ret,itend,button_map,margine - static_cast<unsigned int>(ret - it) }, elem);
+					auto tmpret = boost::apply_visitor(make_tree{ ret,itend,button_map,margine - static_cast<unsigned int>(ret - it) }, elem);
 					if (tmpret.first) {
 						ret = tmpret.second;
 						it_cmd++;
@@ -87,7 +87,7 @@ namespace Command {
 				for (auto&elem : arg.data) {
 					bool succ = false;
 					for (auto it2 = it, itend2 = itend; it2 - it < Sametime_margine && it2 != itend2; it2++) {
-						auto ret = boost::apply_visitor(visitor{ it2,itend2,button_map,margine }, elem);
+						auto ret = boost::apply_visitor(make_tree{ it2,itend2,button_map,margine }, elem);
 						if (ret.first) {
 							if (it2 == it) {
 								just_exist = true;
@@ -101,9 +101,9 @@ namespace Command {
 						return{ false,it };
 					}
 				}
-				return just_exist ? ret_t{ true, oldest } : ret_t{false, it};
+				return just_exist ? ret_t{ true, oldest } : ret_t{ false, it };
 			}
-			
+
 			ret_t operator()(Press arg) const {
 				if (button_map.count(arg.button) == 0) {
 					throw err_no_mapped_buttton{ arg.button };
@@ -131,11 +131,11 @@ namespace Command {
 
 			ret_t operator()(Press_Dir arg) const {
 				if (it == itend) {
-					return { false ,it};
+					return { false ,it };
 				}
 				if (arg.v&&arg.h) {
 					auto buttonv = button_map.at(arg.v == Actions::Vertical::UP ? "U" : "D");
-					auto buttonh = button_map.at(arg.h == Actions::Horizontal::RIGHT ? "F":"B");
+					auto buttonh = button_map.at(arg.h == Actions::Horizontal::RIGHT ? "F" : "B");
 					if ((*it).count(buttonv) > 0 && ((*it).count(buttonh) > 0)) {
 						auto timev = (*it).at(buttonv);
 						auto timeh = (*it).at(buttonh);
@@ -168,7 +168,7 @@ namespace Command {
 					}
 					return ret_t{ ret,it };
 				}
-				return{false,it};
+				return{ false,it };
 			}
 			ret_t operator()(Hold_Dir arg) const {
 				if (it == itend) {
@@ -191,7 +191,7 @@ namespace Command {
 					auto button = button_map.at(arg.h == Actions::Horizontal::RIGHT ? "F" : "B");
 					return ret_t{ (*it).count(button) > 0 && (*it).at(button) >= 0,it };
 				}
-				return{false,it};
+				return{ false,it };
 			}
 			ret_t operator()(Release_Dir arg) const {
 				if (it == itend) {
@@ -204,8 +204,8 @@ namespace Command {
 					if ((*it).count(buttonv) > 0 && ((*it).count(buttonh) > 0)) {
 						auto timev = (*it).at(buttonv);
 						auto timeh = (*it).at(buttonh);
-						auto pretimev = (*(it+1)).at(buttonv);
-						auto pretimeh = (*(it+1)).at(buttonh);
+						auto pretimev = (*(it + 1)).at(buttonv);
+						auto pretimeh = (*(it + 1)).at(buttonh);
 						return{ (timev == -1 || timeh == -1) && (pretimev > arg.time && pretimeh > arg.time),it };
 					}
 				}
@@ -213,18 +213,18 @@ namespace Command {
 					auto button = button_map.at(arg.v == Actions::Vertical::UP ? "U" : "D");
 					auto f = button_map.at("F");
 					auto b = button_map.at("B");
-					auto ret = (isRelease(it, button, arg.time) && !isHold(it,f) && !isHold(it,b)) || isHold(it,button) && (!isPress(it, f) ^ !isPress(it, b));
+					auto ret = (isRelease(it, button, arg.time) && !isHold(it, f) && !isHold(it, b)) || isHold(it, button) && (!isPress(it, f) ^ !isPress(it, b));
 					return{ ret,it };
-					
+
 				}
 				else if (arg.h) {
 					auto button = button_map.at(arg.h == Actions::Horizontal::RIGHT ? "F" : "B");
 					auto u = button_map.at("U");
 					auto d = button_map.at("D");
-					auto ret = (isRelease(it, button, arg.time)  && !isHold(it, u) && !isHold(it, d)) || isHold(it, button) && (!isPress(it, u) ^ !isPress(it, d));
+					auto ret = (isRelease(it, button, arg.time) && !isHold(it, u) && !isHold(it, d)) || isHold(it, button) && (!isPress(it, u) ^ !isPress(it, d));
 					return{ ret,it };
 				}
-				return{false,it};
+				return{ false,it };
 			}
 
 			Buffer_t::const_iterator it;
@@ -238,7 +238,7 @@ namespace Command {
 			verifier(const std::unordered_map<Mapped_Name, unsigned int>& arg) :button_map(arg) {}
 			R operator()(Sequence arg) const {
 				for (auto& elem : arg.data) {
-					auto ret = boost::apply_visitor(verifier{button_map},elem);
+					auto ret = boost::apply_visitor(verifier{ button_map }, elem);
 					if (!ret) {
 						return false;
 					}
@@ -248,7 +248,7 @@ namespace Command {
 
 			R operator()(SameTime arg)const {
 				for (auto& elem : arg.data) {
-					auto ret = boost::apply_visitor(verifier{button_map},elem);
+					auto ret = boost::apply_visitor(verifier{ button_map }, elem);
 					if (!ret) {
 						return false;
 					}
@@ -283,6 +283,64 @@ namespace Command {
 			}
 			const std::unordered_map<Mapped_Name, unsigned int>& button_map;
 		};
+		class printer : public boost::static_visitor<int> {
+			using R = verifier::result_type;
+		public:
+			printer() {}
+			R operator()(Sequence arg) {
+				for (auto& elem : arg.data) {
+					boost::apply_visitor(*this, elem);
+					out += ",";
+				}
+				out.erase(out.find_last_of(","));
+				return 0;
+			}
+
+			R operator()(SameTime arg) {
+				for (auto& elem : arg.data) {
+					boost::apply_visitor(*this, elem);
+					out += "+";
+				}
+				out.erase(out.find_last_of("+"));
+				return 0;
+			}
+
+			R operator()(Press arg) {
+				out += arg.button;
+				return 0;
+			}
+
+
+			R operator()(Hold arg) {
+				out += "/" + arg.button;
+				return 0;
+			}
+
+			R operator()(Release arg) {
+				out += "~" + std::to_string(arg.time) + arg.button;
+				return 0;
+			}
+
+			R operator()(Press_Dir arg) {
+				auto v = std::string{ arg.v ? (arg.v.get() == Vertical::UP ? "U" : "D") : "" };
+				auto h = std::string{ arg.h ? (arg.h.get() == Horizontal::RIGHT ? "F" : "B") : "" };
+				out += arg.only ? ">" : "" + v + h;
+				return 0;
+			}
+			R operator()(Hold_Dir arg) {
+				auto v = std::string{ arg.v ? (arg.v.get() == Vertical::UP ? "U" : "D") : "" };
+				auto h = std::string{ arg.h ? (arg.h.get() == Horizontal::RIGHT ? "F" : "B") : "" };
+				out += "/" + std::to_string(arg.time) + v + h;
+				return 0;
+			}
+			R operator()(Release_Dir arg) {
+				auto v = std::string{ arg.v ? (arg.v.get() == Vertical::UP ? "U" : "D") : "" };
+				auto h = std::string{ arg.h ? (arg.h.get() == Horizontal::RIGHT ? "F" : "B") : "" };
+				out += "~" + std::to_string(arg.time) + v + h;
+				return 0;
+			}
+			std::string out;
+		};
 	}
 
 	class CCommand {
@@ -304,7 +362,7 @@ namespace Command {
 		using isPressedFunc = std::function<bool(unsigned int)>;
 
 	public:
-		CEval(isPressedFunc _isPressed, unsigned int _buffer_size = max_buffer_size) : isPressed(_isPressed),buffer_size(_buffer_size){
+		CEval(isPressedFunc _isPressed, unsigned int _buffer_size = max_buffer_size) : isPressed(_isPressed), buffer_size(_buffer_size) {
 		}
 
 		void Update_Buffer() {
@@ -314,7 +372,7 @@ namespace Command {
 
 			Buffer_t::value_type pushlist;
 			for (auto const & elem : button_map) {
-				auto pressflag= isPressed(elem.second);
+				auto pressflag = isPressed(elem.second);
 				auto & prelist = buffer.size() == 0 ? Buffer_t::value_type{} : *buffer.begin();
 				if (pressflag) {
 					if (prelist.count(elem.second) > 0) {
@@ -332,7 +390,7 @@ namespace Command {
 			}
 			buffer.push_front(pushlist);
 
-			
+
 
 		}
 
@@ -341,7 +399,7 @@ namespace Command {
 				throw err_no_command{ name };
 			}
 			auto const & cmd = data.at(name);
-			auto ret = boost::apply_visitor(impl::visitor{ buffer.begin(),buffer.end(),button_map,cmd.margine }, cmd.data);
+			auto ret = boost::apply_visitor(visitors::make_tree{ buffer.begin(),buffer.end(),button_map,cmd.margine }, cmd.data);
 			return ret.first;
 		}
 		void CEval::Load(const std::string& str) {
@@ -354,7 +412,7 @@ namespace Command {
 
 			err_cmddata err{};
 			for (auto & elem : data) {
-				auto verify = boost::apply_visitor(impl::verifier(button_map),elem.second.data);
+				auto verify = boost::apply_visitor(visitors::verifier(button_map), elem.second.data);
 				if (!verify) {
 					err.command.push_back(elem.first);
 				}
@@ -381,7 +439,7 @@ namespace Command {
 			}
 			err_cmddata err{};
 			for (auto & elem : data) {
-				auto verify = boost::apply_visitor(impl::verifier(button_map),elem.second.data);
+				auto verify = boost::apply_visitor(visitors::verifier(button_map), elem.second.data);
 				if (!verify) {
 					err.command.push_back(elem.first);
 				}
