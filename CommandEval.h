@@ -11,7 +11,6 @@
 
 namespace Command {
 
-	Parser::Cmd cmd_parse(const std::string& s);
 
 	using Buffer_t = std::deque<std::unordered_map<unsigned int, int>>;
 	using ret_t = std::pair<bool, Buffer_t::const_iterator>;
@@ -25,7 +24,7 @@ namespace Command {
 			std::string err;
 		};
 		static constexpr unsigned int Sametime_margine = 3;
-		class make_tree : public boost::static_visitor<ret_t> {
+		class executer : public boost::static_visitor<ret_t> {
 		private:
 			bool isPress(const Buffer_t::const_iterator& _it, unsigned int button)const {
 				if (_it == itend) {
@@ -51,7 +50,7 @@ namespace Command {
 				return ret;
 			}
 		public:
-			make_tree(const Buffer_t::const_iterator& _it, const Buffer_t::const_iterator& _itend, const std::unordered_map<Mapped_Name, unsigned int>& _button_map, unsigned int _margine = 1) :it(_it), itend(_itend), button_map(_button_map), margine(_margine) {}
+			executer(const Buffer_t::const_iterator& _it, const Buffer_t::const_iterator& _itend, const std::unordered_map<Mapped_Name, unsigned int>& _button_map, unsigned int _margine = 1) :it(_it), itend(_itend), button_map(_button_map), margine(_margine) {}
 			ret_t operator()(Sequence arg) const {
 				decltype(it) ret = it;
 				for (auto it_cmd = arg.data.rbegin(), end = arg.data.rend(); it_cmd != end;) {
@@ -60,7 +59,7 @@ namespace Command {
 						return ret_t{ false,it };
 					}
 					auto & elem = *it_cmd;
-					auto tmpret = boost::apply_visitor(make_tree{ ret,itend,button_map,margine - static_cast<unsigned int>(ret - it) }, elem);
+					auto tmpret = boost::apply_visitor(executer{ ret,itend,button_map,margine - static_cast<unsigned int>(ret - it) }, elem);
 					if (tmpret.first) {
 						ret = tmpret.second;
 						it_cmd++;
@@ -87,7 +86,7 @@ namespace Command {
 				for (auto&elem : arg.data) {
 					bool succ = false;
 					for (auto it2 = it, itend2 = itend; it2 - it < Sametime_margine && it2 != itend2; it2++) {
-						auto ret = boost::apply_visitor(make_tree{ it2,itend2,button_map,margine }, elem);
+						auto ret = boost::apply_visitor(executer{ it2,itend2,button_map,margine }, elem);
 						if (ret.first) {
 							if (it2 == it) {
 								just_exist = true;
@@ -373,7 +372,7 @@ namespace Command {
 			Buffer_t::value_type pushlist;
 			for (auto const & elem : button_map) {
 				auto pressflag = isPressed(elem.second);
-				auto & prelist = buffer.size() == 0 ? Buffer_t::value_type{} : *buffer.begin();
+				auto & prelist =  *buffer.begin();
 				if (pressflag) {
 					if (prelist.count(elem.second) > 0) {
 						pushlist[elem.second] = prelist[elem.second] + 1;
@@ -393,26 +392,23 @@ namespace Command {
 
 
 		}
-
 		bool Eval_Command(std::string name) {
 			if (data.count(name) == 0) {
 				throw err_no_command{ name };
 			}
 			auto const & cmd = data.at(name);
-			auto ret = boost::apply_visitor(visitors::make_tree{ buffer.begin(),buffer.end(),button_map,cmd.margine }, cmd.data);
+			auto ret = boost::apply_visitor(visitors::executer{ buffer.begin(),buffer.end(),button_map,cmd.margine }, cmd.data);
 			return ret.first;
 		}
-		void CEval::Load(const std::string& str) {
-			auto ret = Command::cmd_parse(str);
-			button_map = ret.map;
-			for (auto & elem : ret.data) {
+		void CEval::Load(const Command::Parser::Cmd& cmd) {
+			for (auto & elem : cmd.data) {
 				data[elem.name].data = elem.action;
 				data[elem.name].margine = elem.time;
 			}
-
+			button_map = cmd.map;
 			err_cmddata err{};
 			for (auto & elem : data) {
-				auto verify = boost::apply_visitor(visitors::verifier(button_map), elem.second.data);
+				auto verify = boost::apply_visitor(visitors::verifier(cmd.map), elem.second.data);
 				if (!verify) {
 					err.command.push_back(elem.first);
 				}
@@ -420,33 +416,9 @@ namespace Command {
 			if (err.command.size() > 0) {
 				throw err;
 			}
-		}
 
-		void CEval::Load_file(std::string filename) {
-			std::ifstream ifs(filename);
-			if (ifs.fail())
-			{
-				return;
-			}
-			std::string str((std::istreambuf_iterator<char>(ifs)),
-				std::istreambuf_iterator<char>());
-
-			auto ret = Command::cmd_parse(str);
-			button_map = ret.map;
-			for (auto & elem : ret.data) {
-				data[elem.name].data = elem.action;
-				data[elem.name].margine = elem.time;
-			}
-			err_cmddata err{};
-			for (auto & elem : data) {
-				auto verify = boost::apply_visitor(visitors::verifier(button_map), elem.second.data);
-				if (!verify) {
-					err.command.push_back(elem.first);
-				}
-			}
-			if (err.command.size() > 0) {
-				throw err;
-			}
+			//init input history with none
+			buffer.push_back(Buffer_t::value_type{});
 		}
 		std::unordered_map<Command_Name, CCommand> getCmddata() {
 			return data;

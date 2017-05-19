@@ -8,6 +8,10 @@
 # include<fstream>
 # include<atlstr.h>
 
+namespace Command {
+	extern Command::Parser::Cmd cmd_parse_fromfile(const std::string& s);
+}
+
 struct Hadou {
 	std::pair<double, double> dir;
 	double x, y;
@@ -137,23 +141,24 @@ void SceneDraw() {
 }
 
 
-int WINAPI WinMain2(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	LPSTR lpCmdLine, int nCmdShow)
 {
 	ChangeWindowMode(TRUE), DxLib_Init(), SetDrawScreen(DX_SCREEN_BACK); ///ウィンドウモード変更と初期化と裏画面設定
 
 	auto&mgr = Cfg::CButtonMgr::getCButtonMgr();
-	mgr.SetPlayerCfg_pad(0, "pad_dxlib.cfg", DX_INPUT_PAD1);
+	//mgr.SetPlayerCfg_pad(0, "pad_dxlib.cfg", DX_INPUT_PAD1);
+	mgr.SetPlayerCfg_key(0, "key_dxlib.cfg");
 	mgr.SetPlayerCfg_pad(1, "pad_dxlib.cfg", DX_INPUT_PAD2);
 
 	auto pressed_func_p1 = GEN_Pressed_Func(mgr, [&]() {return c1.getFacing(); }, 0);
 	auto cmdmgr1 = Command::CEval{ pressed_func_p1 };
-	cmdmgr1.Load_file("Text.txt");
+	cmdmgr1.Load(Command::cmd_parse_fromfile("Text.txt"));
 	auto cmddata1 = cmdmgr1.getCmddata();
 
 	auto pressed_func_p2 = GEN_Pressed_Func(mgr, [&]() {return c2.getFacing(); }, 1);
 	auto cmdmgr2 = Command::CEval{ pressed_func_p2 };
-	cmdmgr2.Load_file("Text.txt");
+	cmdmgr2.Load(Command::cmd_parse_fromfile("Text.txt"));
 	auto cmddata2 = cmdmgr2.getCmddata();
 
 	c1.cmgr = &cmdmgr1;

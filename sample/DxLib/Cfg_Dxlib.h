@@ -78,7 +78,7 @@ namespace Cfg {
 
 
 			CSVReader::CFileRead cfg;
-			if (cfg.FileRead(file.c_str(), ",") < -1) { 
+			if (cfg.FileRead(file.c_str(), ",") < 0) { 
 				return {};
 			}
 
@@ -124,7 +124,7 @@ namespace Cfg {
 			}
 
 			int SetPlayerCfg_key(Player player, std::string file) {
-				auto keys = Input_from_cfg_key_DxLib(file, [](int _x) {return getCButtonMgr().checkkey(_x); });
+				auto keys = Input_from_cfg_key_DxLib(file, [=](int _x) {return this->checkkey(_x); });
 				if (keys.empty()) {
 					return -1;
 				}
