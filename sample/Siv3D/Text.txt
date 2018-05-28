@@ -1,0 +1,59 @@
+[Remap]
+a = 10
+b = 11
+c = 12
+d = 8
+D = 4
+B = 5
+F = 6
+U = 7
+
+[Command]
+name = "F"
+command = F
+time = 1
+
+[Command]
+name = "D"
+command = D
+time = 1
+
+[Command]
+name = "B"
+command = B
+time = 1
+
+[Command]
+name = "U"
+command = U
+time = 1
+
+
+
+
+[Command]
+name = "abc"
+command = a,b,c
+time = 10
+
+[ Command ] 
+name = "test"
+command   = D,>D ;doesn't activate by inputting D->DF->D 
+time = 10
+
+[ Command ] 
+name = "tame"
+command   = ~30a,b+c
+time = 10
+
+
+[ Command ] 
+name = "Hadou"
+command   = /D,DF,F,a
+time = 60
+
+[ Command ] 
+name = "sinku"
+command   = /D,DF,F,D,DF,F,a+b
+time = 60
+;
