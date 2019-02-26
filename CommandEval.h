@@ -399,7 +399,7 @@ namespace Command {
 			auto ret = boost::apply_visitor(visitors::executer{ buffer.begin(),buffer.end(),button_map,cmd.margine }, cmd.data);
 			return ret.first;
 		}
-		void CEval::Load(const Command::Parser::Cmd& cmd) {
+		void Load(const Command::Parser::Cmd& cmd) {
 			for (auto & elem : cmd.data) {
 				data[elem.name].data = elem.action;
 				data[elem.name].margine = elem.time;

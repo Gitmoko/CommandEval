@@ -3,8 +3,10 @@
 
 #ifndef USELIB
 
-extern Command::Parser::Cmd cmd_parse_fromfile(const std::string& s);
+
 namespace Command {
+
+	extern Command::Parser::Cmd cmd_parse_fromfile(const std::string& s);
 	Command_ForDxLib::Command_ForDxLib(isPressedFunc _isPressed) {
 		pimpl.reset(new Command::CEval(_isPressed));
 	}
